@@ -14,7 +14,7 @@ register_equipment( equipment_name, hint, howto_hint, equipmentVO, watcher_threa
 	{
 		return;
 	}
-	
+
 	PrecacheString( hint );
 
 	struct = SpawnStruct();
@@ -140,6 +140,11 @@ equipment_spawn_think()
 
 set_equipment_invisibility_to_player( equipment, invisible )
 {
+	if ( !IsDefined( level.zombie_equipment ) || !IsDefined( level.zombie_equipment[equipment] ) )
+	{
+		return;
+	}
+
 	triggers = level.zombie_equipment[equipment].triggers;
 	for ( i = 0; i < triggers.size; i++ )
 	{
