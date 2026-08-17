@@ -67,14 +67,30 @@ init_equipment_upgrade()
 
 	for( i = 0; i < equipment_spawns.size; i++ )
 	{
-		hint_string = get_equipment_hint( equipment_spawns[i].zombie_equipment_upgrade );
-
-		equipment_spawns[i] SetHintString( hint_string );
-		equipment_spawns[i] setCursorHint( "HINT_NOICON" );
-		equipment_spawns[i] UseTriggerRequireLookAt();
-		equipment_spawns[i] add_to_equipment_trigger_list( equipment_spawns[i].zombie_equipment_upgrade );
-		equipment_spawns[i] thread equipment_spawn_think();
+		equipment_spawns[i] thread setup_equipment_spawn_when_ready( equipment_spawns[i].zombie_equipment_upgrade );
 	}
+}
+
+
+// Some equipment (e.g. Moon's gasmask/hacker) is registered by map-specific scripts
+// that run in a different zone than common_zombie_patch, so it may not be registered
+// yet at the moment this common-zone code scans for equipment trigger entities. Wait
+// for registration to actually complete before setting up the trigger, instead of
+// assuming it's already there.
+setup_equipment_spawn_when_ready( equipment_name )
+{
+	while ( !IsDefined( level.zombie_equipment ) || !IsDefined( level.zombie_equipment[equipment_name] ) )
+	{
+		wait( 0.05 );
+	}
+
+	hint_string = get_equipment_hint( equipment_name );
+
+	self SetHintString( hint_string );
+	self setCursorHint( "HINT_NOICON" );
+	self UseTriggerRequireLookAt();
+	self add_to_equipment_trigger_list( equipment_name );
+	self thread equipment_spawn_think();
 }
 
 
