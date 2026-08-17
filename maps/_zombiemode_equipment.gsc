@@ -62,6 +62,15 @@ include_zombie_equipment( equipment_name )
 
 init_equipment_upgrade()
 {
+	// May be called twice: once from common_zombie_patch's own main(),
+	// and once explicitly from a map's own zone (e.g. Moon) to guarantee
+	// correct cross-zone ordering. Guard against double setup.
+	if ( IsDefined( level.equipment_upgrade_initialized ) )
+	{
+		return;
+	}
+	level.equipment_upgrade_initialized = true;
+
 	equipment_spawns = [];
 	equipment_spawns = GetEntArray( "zombie_equipment_upgrade", "targetname" );
 
