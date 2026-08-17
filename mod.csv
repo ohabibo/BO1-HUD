@@ -55,6 +55,7 @@ rawfile,maps/_zombiemode_blockers.gsc
 rawfile,maps/_zombiemode_bowie.gsc
 rawfile,maps/_zombiemode_claymore.gsc
 rawfile,maps/_zombiemode_devgui.gsc
+rawfile,maps/_zombiemode_equip_gasmask.gsc
 rawfile,maps/_zombiemode_equipment.gsc
 rawfile,maps/_zombiemode_ffotd.gsc
 rawfile,maps/_zombiemode_load.gsc
