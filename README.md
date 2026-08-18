@@ -12,3 +12,4 @@
 * Timer - starts once the player can move
 * Zombie counter
 * Health bar
+* Drops - counts power-up drops
