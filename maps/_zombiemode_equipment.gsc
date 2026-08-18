@@ -62,32 +62,126 @@ include_zombie_equipment( equipment_name )
 
 init_equipment_upgrade()
 {
-	// May be called twice: once from common_zombie_patch's own main(),
-	// and once explicitly from a map's own zone (e.g. Moon) to guarantee
-	// correct cross-zone ordering. Guard against double setup.
-	if ( IsDefined( level.equipment_upgrade_initialized ) )
-	{
-		return;
-	}
-	level.equipment_upgrade_initialized = true;
+	cleanup_extra_hacker_positions();
 
 	equipment_spawns = [];
 	equipment_spawns = GetEntArray( "zombie_equipment_upgrade", "targetname" );
 
 	for( i = 0; i < equipment_spawns.size; i++ )
 	{
-		equipment_spawns[i] thread setup_equipment_spawn_when_ready( equipment_spawns[i].zombie_equipment_upgrade );
+		equipment_spawns[i] thread setup_equipment_spawn_when_ready();
 	}
 }
 
-
-// Some equipment (e.g. Moon's gasmask/hacker) is registered by map-specific scripts
-// that run in a different zone than common_zombie_patch, so it may not be registered
-// yet at the moment this common-zone code scans for equipment trigger entities. Wait
-// for registration to actually complete before setting up the trigger, instead of
-// assuming it's already there.
-setup_equipment_spawn_when_ready( equipment_name )
+get_hacker_targets()
 {
+	hacker_targets = [];
+	hacker_targets[0] = "pf1325_auto37";
+	hacker_targets[1] = "pf1328_auto37";
+	hacker_targets[2] = "pf1329_auto37";
+	hacker_targets[3] = "pf1330_auto37";
+	hacker_targets[4] = "pf1331_auto37";
+	hacker_targets[5] = "pf1332_auto37";
+	return hacker_targets;
+}
+
+// Moon's own vanilla logic (hacker_location_random_init, in
+// zombie_moon_utility.gsc) is supposed to pick one of the 6 hacker
+// positions to be active at level start and delete the trigger+model at
+// the other 5. That depends on the same broken field, so it never runs,
+// leaving all 6 visible and pickable at once. Replicate the same
+// behavior here with our reliable .target-based detection, and also
+// rebuild level.hacker_tool_positions ourselves so the post-pickup
+// relocation logic in equipment_spawn_think() has real data to use.
+cleanup_extra_hacker_positions()
+{
+	hacker_targets = get_hacker_targets();
+
+	hacker_ents = [];
+	all_spawns = GetEntArray( "zombie_equipment_upgrade", "targetname" );
+	for ( i = 0; i < all_spawns.size; i++ )
+	{
+		if ( !IsDefined( all_spawns[i].target ) )
+		{
+			continue;
+		}
+		for ( t = 0; t < hacker_targets.size; t++ )
+		{
+			if ( all_spawns[i].target == hacker_targets[t] )
+			{
+				hacker_ents[hacker_ents.size] = all_spawns[i];
+			}
+		}
+	}
+
+	if ( hacker_ents.size <= 1 )
+	{
+		return;
+	}
+
+	level.hacker_tool_positions = [];
+	for ( i = 0; i < hacker_ents.size; i++ )
+	{
+		struct = SpawnStruct();
+		struct.trigger_org = hacker_ents[i].origin;
+		model = GetEnt( hacker_ents[i].target, "targetname" );
+		if ( IsDefined( model ) )
+		{
+			struct.model_org = model.origin;
+			struct.model_ang = model.angles;
+		}
+		level.hacker_tool_positions[level.hacker_tool_positions.size] = struct;
+	}
+
+	keep_index = RandomInt( hacker_ents.size );
+	for ( i = 0; i < hacker_ents.size; i++ )
+	{
+		if ( i == keep_index )
+		{
+			continue;
+		}
+		model = GetEnt( hacker_ents[i].target, "targetname" );
+		if ( IsDefined( model ) )
+		{
+			model Delete();
+		}
+		hacker_ents[i] Delete();
+	}
+}
+
+// The zombie_equipment_upgrade custom keyvalue never survives this zone's
+// build process (confirmed extensively - it's never populated, regardless
+// of timing, threading, or which linker built the zone), and level-scoped
+// data built from it (level.hacker_tool_positions) is equally unusable.
+// .target, a standard entity field, survives fine. Moon has exactly two
+// equipment types and 6 confirmed hacker repositioning spots (identified
+// in-game) - everything else is the gasmask/P.E.S.
+determine_equipment_type()
+{
+	hacker_targets = get_hacker_targets();
+
+	if ( IsDefined( self.target ) )
+	{
+		for ( t = 0; t < hacker_targets.size; t++ )
+		{
+			if ( self.target == hacker_targets[t] )
+			{
+				return "equip_hacker_zm";
+			}
+		}
+	}
+	return "equip_gasmask_zm";
+}
+
+setup_equipment_spawn_when_ready()
+{
+	equipment_name = determine_equipment_type();
+	// equipment_spawn_think() runs as its own separate thread and can't
+	// see this local variable, so stash it directly on the entity - a
+	// plain runtime script field we set ourselves, unlike the broken
+	// map-compiled zombie_equipment_upgrade keyvalue.
+	self.resolved_equipment_name = equipment_name;
+
 	while ( !IsDefined( level.zombie_equipment ) || !IsDefined( level.zombie_equipment[equipment_name] ) )
 	{
 		wait( 0.05 );
@@ -142,10 +236,10 @@ equipment_spawn_think()
 			continue;
 		}
 		
-		if( is_limited_equipment(self.zombie_equipment_upgrade)) //only one player can have limited equipment at a time
-		{			
-			player setup_limited_equipment(self.zombie_equipment_upgrade);
-			
+		if( is_limited_equipment(self.resolved_equipment_name)) //only one player can have limited equipment at a time
+		{
+			player setup_limited_equipment(self.resolved_equipment_name);
+
 			//move the equpiment respawn to a new location
 			if(isDefined(level.hacker_tool_positions))
 			{
@@ -153,12 +247,12 @@ equipment_spawn_think()
 				self.origin = new_pos.trigger_org;
 				model = getent(self.target,"targetname");
 				model.origin = new_pos.model_org;
-				model.angles = new_pos.model_ang;				
+				model.angles = new_pos.model_ang;
 			}
-			
-		}		
-		
-		player equipment_give( self.zombie_equipment_upgrade );
+
+		}
+
+		player equipment_give( self.resolved_equipment_name );
 	}
 }
 
