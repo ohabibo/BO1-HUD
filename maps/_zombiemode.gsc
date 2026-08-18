@@ -7,13 +7,49 @@
 
 #using_animtree( "generic_human" );
 
+debug_log_add( msg )
+{
+	if ( !IsDefined( level.debug_log ) )
+	{
+		level.debug_log = [];
+	}
+	level.debug_log[level.debug_log.size] = msg;
+}
+
+debug_client_hud_on_connect()
+{
+	printed = 0;
+	for ( ;; )
+	{
+		players = get_players();
+		for ( i = 0; i < players.size; i++ )
+		{
+			if ( IsDefined( players[i] ) && IsPlayer( players[i] ) )
+			{
+				if ( IsDefined( level.debug_log ) )
+				{
+					while ( printed < level.debug_log.size )
+					{
+						players[i] IPrintLnBold( level.debug_log[printed] );
+						printed++;
+					}
+				}
+			}
+		}
+		wait( 0.5 );
+	}
+}
+
 main()
 {
+	level thread debug_client_hud_on_connect();
+
 	level.player_too_many_weapons_monitor = true;
 	level.player_too_many_weapons_monitor_func = ::player_too_many_weapons_monitor;
 	level._dontInitNotifyMessage = 1;
 
 	init_additionalprimaryweapon_machine_locations();
+	debug_log_add( "CP1: after primaryweapon locations" );
 
 	// put things you'd like to be able to turn off in here above this line
 	level thread maps\_zombiemode_ffotd::main_start();
@@ -49,6 +85,7 @@ main()
 
 	precache_shaders();
 	precache_models();
+	debug_log_add( "CP2: after precache" );
 
 	PrecacheItem( "frag_grenade_zm" );
 	PrecacheItem( "claymore_zm" );
@@ -56,6 +93,7 @@ main()
 	//override difficulty
 	level.skill_override = 1;
 	maps\_gameskill::setSkill(undefined,level.skill_override);
+	debug_log_add( "CP3: after setSkill" );
 
 	level.disable_player_damage_knockback = true;
 
@@ -68,6 +106,7 @@ main()
 	level._ZOMBIE_GIB_PIECE_INDEX_GUTS = 6;
 
 	init_dvars();
+	debug_log_add( "CP4: after init_dvars" );
 	init_mutators();
 	init_strings();
 	init_levelvars();
@@ -76,6 +115,7 @@ main()
 	init_shellshocks();
 	init_flags();
 	init_client_flags();
+	debug_log_add( "CP5: after init_client_flags" );
 
 	register_offhand_weapons_for_level_defaults();
 
@@ -85,6 +125,7 @@ main()
 		level.zombie_ai_limit = 24;
 		SetAILimit( level.zombie_ai_limit );
 	}
+	debug_log_add( "CP6: after AI limit" );
 
 	init_fx();
 	//maps\_zombiemode_ability::init();
@@ -99,7 +140,9 @@ main()
 	maps\_zombiemode_audio::audio_init();
 	maps\_zombiemode_claymore::init();
 	maps\_zombiemode_weapons::init();
+	debug_log_add( "CP7: BEFORE equipment::init call" );
 	maps\_zombiemode_equipment::init();
+	debug_log_add( "CP8: AFTER equipment::init call" );
 	maps\_zombiemode_blockers::init();
 	maps\_zombiemode_spawner::init();
 	maps\_zombiemode_powerups::init();
